@@ -9,14 +9,31 @@ namespace FitnessApp.Controllers
             return View();
         }
     }
-        
-    //public class Task<IActionResult> Trainer()
-    //{
 
-    //}
-    
-        
-    
+    public class Task<IActionResult> Trainer(FitnessApp.Models.TrainerViewModelcs trainer)
+    {
+        var userID = trainer.UserID; try
+        {
+
+            //IN this module I will be loading the trainer data 
+
+
+
+
+
+
+
+
+        }catch(Exception Ex)
+        {
+            return Ex; 
+        }
+    }
+
+
+
+
+
 
 
 
