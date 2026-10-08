@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
+using System.Diagnostics.Eventing.Reader;
 using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 
@@ -161,18 +162,109 @@ namespace FitnessApp.Controllers
             }
         }
 
-        public static async Task<IActionResult> Register()
+        public async Task<IActionResult> LoggedIn(string? recaptchaToken, string? error, string? returnUrl = "/", string? email = "", string? password = "")
         {
-            //The View for the register page is returned here. 
-            try { }
-            catch (Exception ex)
-            {
-                // Log the exception or handle it as needed
-                Console.WriteLine($"An error occurred: {ex.Message}");
-                // Optionally, you can return an error view or message
-                return new ViewResult { ViewName = "Error" };
+            var token = recaptchaToken;
+            var (ok, reason, raw) = await _recaptcha.VerfiyV3Async(token, expectedAction: "login", expectedHostname: Request.Host.Host);
+
+            if (ok) {
+                TempData["ErrorMessage"] = reason ?? "reCaptcha failed.";
+                return View("Login");
             }
-            return new ViewResult { ViewName = "Register" };
+
+            TempData["Email"] = email;
+
+            var passwordHasher = new PasswordHasher<Authentication>();
+            var user = await _userManager.FindByEmailAsync(email);
+
+            if (user != null)
+            {
+                try
+                {
+                    if (!await _userManager.GetLockoutEnabledAsync(user))
+                    {
+                        await _userManager.SetLockoutEnabledAsync(user, true);
+                    }
+
+                    if (await _userMnager.IsLockedOutAsync(user))
+                    {
+                        var lockoutEnd = await _userManager.GetLockoutEndDateAsync(user);
+                        TempData["ErrorMessage"] = $"Your account is locked until {lockoutEnd?.LocalDateTime}.";
+                        return RedirectToAction("Login", "Account");
+                    }
+
+                    var verify = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
+
+                    if (verify == passwordVerificationResult.Success || verify = passwordVerificationResult.SuccessRehashNeeded)
+                    {
+                        await _userManager.ResetAccessFailedCountAsync(user);
+                        await _signInManager.SignInAsync(user, isPersistent: false);
+                        return RedirectToAction("Home", "Dashboard");
+                    }
+                    await _userManager.AccessFailedAsync(user);
+
+                    int count = await _UserManager.GetAccessFailedCountAsync(user);
+                    int max = _userManager.Options.Lockout.MaxFailedAccessAttempts;
+                    int remcount = max - count;
+
+                    if (count >= max)
+                    {
+                        TempData["ErrorMessage"] = "Account Locked, too many attempts.";
+                        return RedirectToAction("Login", "Account");
+                    }
+
+                    TempData["ErrorMessage"] = $"Incorrect username or password. <br />Attempts remaining:{" " + remcount}";
+                    return RedirectToAction("Login", "Account");
+                } catch (ArgumentNullException ex)
+                {
+                    TempData["ErrorMessage"] = "Add a password to your account.";
+                    return RedirectToAction("Login", "Account");
+                } catch (Exception ex)
+                {
+                    _Logger.LogError(ex, "An error occurred during login.");
+                    TempData["Exception"] = ex.Message
+                    return RedirectToAction("Index", "Home");
+                }
+                else {
+
+                    if (string.IsNullOrEmpty(error) || error == "unauthorized")
+                    {
+                        TempData["ErrorMessage"] = "No user account associated with that email. Please register.";
+                        return RedirectToAction("Login", "Account");
+                    }
+                }
+                RedirectToAction("Home", "Dashboard");
+            }
+        }
+
+        public static async Task<IActionResult> Register()
+                    {
+                        //The View for the register page is returned here. 
+                        try { }
+                        catch (Exception ex)
+                        {
+                            // Log the exception or handle it as needed
+                            Console.WriteLine($"An error occurred: {ex.Message}");
+                            // Optionally, you can return an error view or message
+                            return new ViewResult { ViewName = "Error" };
+                        }
+                        return new ViewResult { ViewName = "Register" };
+                    }
+
+        //public static async Task<IActionResult> UpdateTrainer()
+        //{
+        //}
+
+        //public static async Task<IActionResult> SubmitTrainer()
+        //{
+
+        //}
+
+        public async Task<IActionResult> AccessDenied(string? returnUrl = null)
+        {
+            var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value);
+            _Logger.LogWarning("Access denied to {Url} for {User}. Roles in cookie: {Roles}", returnUrl, User.Identity?.Name, string.Join(", ", roles));
+            return View(); 
         }
 
         public static async Task<IActionResult> ForgotPassword()
