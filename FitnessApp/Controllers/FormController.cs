@@ -14,14 +14,10 @@ namespace FitnessApp.Controllers
     public class Task<IActionResult> Trainer(FitnessApp.Models.TrainerViewModel trainer)
     {
         var userID = trainer.UserID; 
-        try{
+        try
+        {
 
             //IN this module I will be loading the trainer data 
-
-
-
-
-
 
 
 
