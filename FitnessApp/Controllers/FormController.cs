@@ -9,11 +9,12 @@ namespace FitnessApp.Controllers
             return View();
         }
     }
-
-    public class Task<IActionResult> Trainer(FitnessApp.Models.TrainerViewModelcs trainer)
+    
+    [HttpGet]
+    public class Task<IActionResult> Trainer(FitnessApp.Models.TrainerViewModel trainer)
     {
-        var userID = trainer.UserID; try
-        {
+        var userID = trainer.UserID; 
+        try{
 
             //IN this module I will be loading the trainer data 
 
@@ -28,6 +29,21 @@ namespace FitnessApp.Controllers
         {
             return Ex; 
         }
+    }
+    [ValidateAntiForgeryToken]
+    [HttpPost]
+    public class Task<IActionResult> _UpdateTrainer([FromForm] )
+    {
+        try
+        {
+            var task = EGO_DAL.DB.TrainerDB
+        }
+        catch (Exception Ex) 
+        {
+            return HttpRequestError.InvalidResponse;
+        }
+
+        return HttpRequestError.ConnectionError;
     }
 
 

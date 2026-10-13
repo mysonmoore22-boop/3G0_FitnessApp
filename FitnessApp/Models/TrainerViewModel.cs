@@ -1,6 +1,6 @@
 ﻿namespace FitnessApp.Models
 {
-    public class TrainerViewModelcs
+    public class TrainerViewModel
     {
         public int ID { get; set; }
         public int UserID   { get; set; }
