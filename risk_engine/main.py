@@ -1,15 +1,17 @@
 from enum import Enum
-from typing import Optional
+from typing import List
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
-app = FastAPI(title="Zero Trust Risk Scoring Engine", version="1.0.0")
+app = FastAPI(title="Zero Trust 5-Tier Adaptive Policy Engine", version="2.0.0")
 
 
-class RiskTier(str, Enum):
-    LOW = "LOW"
-    MEDIUM = "MEDIUM"
-    HIGH = "HIGH"
+class TrustTier(str, Enum):
+    CRITICAL = "CRITICAL"  # Terrible (0 - 20)
+    POOR = "POOR"  # Poor (21 - 40)
+    MODERATE = "MODERATE"  # Moderate (41 - 60)
+    GOOD = "GOOD"  # Good (61 - 80)
+    EXCELLENT = "EXCELLENT"  # Great (81 - 100)
 
 
 class DevicePosture(BaseModel):
@@ -20,7 +22,9 @@ class DevicePosture(BaseModel):
 
 class EvaluationRequest(BaseModel):
     identity_id: str
-    target_action: str  # e.g., "view_schedule", "access_payouts", "admin_portal"
+    target_action: (
+        str  # "admin_portal", "access_payouts", "view_client_data", "view_schedule"
+    )
     client_ip: str
     device_posture: DevicePosture
     is_impossible_travel: bool = False
@@ -29,67 +33,87 @@ class EvaluationRequest(BaseModel):
 
 class EvaluationResponse(BaseModel):
     identity_id: str
+    trust_score: int
     risk_score: int
-    risk_tier: RiskTier
+    trust_tier: TrustTier
     action_permitted: bool
-    reason: str
+    reasons: List[str]
 
 
 @app.post("/risk/evaluate", response_model=EvaluationResponse)
 async def evaluate_risk(payload: EvaluationRequest) -> EvaluationResponse:
-    score = 0
-    reasons = []
+    # Baseline: Start with perfect trust (100) and zero risk (0)
+    trust = 100
+    reasons: List[str] = []
 
-    # 1. Posture evaluations (Baseline checks)
+    # 1. Posture Penalties
     if not payload.device_posture.is_disk_encrypted:
-        score += 35
-        reasons.append("Unencrypted disk detected")
+        trust -= 30
+        reasons.append("Unencrypted storage detected (-30)")
 
     if not payload.device_posture.edr_agent_active:
-        score += 30
-        reasons.append("EDR agent missing or disabled")
+        trust -= 35
+        reasons.append("EDR / endpoint protection disabled (-35)")
 
     if not payload.device_posture.os_version_supported:
-        score += 15
-        reasons.append("Outdated OS version")
+        trust -= 15
+        reasons.append("Outdated or unsupported OS (-15)")
 
-    # 2. Network & behavioral flags
+    # 2. Behavioral & Velocity Penalties
     if payload.is_impossible_travel:
-        score += 50
-        reasons.append("Impossible travel velocity observed")
+        trust -= 80  # Severe indicator of token theft / proxy hopping
+        reasons.append("Impossible travel velocity observed (-80)")
 
     if payload.failed_mfa_recent_count > 0:
-        score += min(payload.failed_mfa_recent_count * 15, 45)
-        reasons.append(f"{payload.failed_mfa_recent_count} recent failed MFA attempts")
+        penalty = min(payload.failed_mfa_recent_count * 20, 60)
+        trust -= penalty
+        reasons.append(
+            f"{payload.failed_mfa_recent_count} recent MFA failures (-{penalty})"
+        )
 
-    # Cap score at 100
-    score = min(score, 100)
+    # Clamp score between 0 and 100
+    trust_score = max(0, min(trust, 100))
+    risk_score = 100 - trust_score
 
-    # 3. Categorize Risk Tier
-    if score >= 60:
-        tier = RiskTier.HIGH
-    elif score >= 30:
-        tier = RiskTier.MEDIUM
+    # 3. Categorize into 5 equal 20-point tiers
+    if trust_score > 80:
+        tier = TrustTier.EXCELLENT
+    elif trust_score > 60:
+        tier = TrustTier.GOOD
+    elif trust_score > 40:
+        tier = TrustTier.MODERATE
+    elif trust_score > 20:
+        tier = TrustTier.POOR
     else:
-        tier = RiskTier.LOW
+        tier = TrustTier.CRITICAL
 
-    # 4. Zero Trust Policy Decision:
-    # Key scenario requirement: High-value actions (payouts/admin) require LOW risk.
-    # Routine actions (schedule) remain permitted even under MEDIUM risk.
-    if tier == RiskTier.HIGH:
-        permitted = False
-    elif tier == RiskTier.MEDIUM and payload.target_action in [
-        "access_payouts",
-        "admin_portal",
-    ]:
-        permitted = False
-    else:
+    # 4. Action Access Matrix (Continuous Least-Privilege Verification)
+    action = payload.target_action
+    permitted = False
+
+    if tier == TrustTier.EXCELLENT:
         permitted = True
+    elif tier == TrustTier.GOOD:
+        permitted = action in ["access_payouts", "view_client_data", "view_schedule"]
+    elif tier == TrustTier.MODERATE:
+        # Compromised trainer scenario: unencrypted disk drops trust here.
+        # Can still view data and schedule, but payouts are locked out.
+        permitted = action in ["view_client_data", "view_schedule"]
+    elif tier == TrustTier.POOR:
+        # Device severely neglected: read-only non-sensitive operations only.
+        permitted = action in ["view_schedule"]
+    else:  # CRITICAL (Terrible)
+        # Impossible travel or major breach indicator: complete quarantine.
+        permitted = False
+
+    if not reasons:
+        reasons.append("Telemetry verified nominal")
 
     return EvaluationResponse(
         identity_id=payload.identity_id,
-        risk_score=score,
-        risk_tier=tier,
+        trust_score=trust_score,
+        risk_score=risk_score,
+        trust_tier=tier,
         action_permitted=permitted,
-        reason=", ".join(reasons) if reasons else "Nominal telemetry parameters",
+        reasons=reasons,
     )
