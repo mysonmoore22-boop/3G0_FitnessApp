@@ -21,8 +21,7 @@ namespace FitnessApp.Controllers
         private readonly userService _userService;
         private readonly IWebHostEnvironment _env; 
         private readonly string? Email;
-        private readonly string? user; 
-
+        private readonly string? user;
 
 
         public IActionResult Index()
@@ -148,7 +147,9 @@ namespace FitnessApp.Controllers
             }
         }
 
-        public async Task<IActionResult> LoggedOUT()
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public static IActionResult LoggedOUT()
         {
             //The view for the logged out page is returned here. 
             try
@@ -160,12 +161,13 @@ namespace FitnessApp.Controllers
             {
                 return View("Error");  
             }
+            return null; 
         }
 
         public async Task<IActionResult> LoggedIn(string? recaptchaToken, string? error, string? returnUrl = "/", string? email = "", string? password = "")
         {
             var token = recaptchaToken;
-            var (ok, reason, raw) = await _recaptcha.VerfiyV3Async(token, expectedAction: "login", expectedHostname: Request.Host.Host);
+            //var (ok, reason, raw) = await _recaptcha.VerfiyV3Async(token, expectedAction: "login", expectedHostname: Request.Host.Host);
 
             if (ok) {
                 TempData["ErrorMessage"] = reason ?? "reCaptcha failed.";
@@ -238,18 +240,18 @@ namespace FitnessApp.Controllers
         }
 
         public static async Task<IActionResult> Register()
-                    {
-                        //The View for the register page is returned here. 
-                        try { }
-                        catch (Exception ex)
-                        {
-                            // Log the exception or handle it as needed
-                            Console.WriteLine($"An error occurred: {ex.Message}");
-                            // Optionally, you can return an error view or message
-                            return new ViewResult { ViewName = "Error" };
-                        }
-                        return new ViewResult { ViewName = "Register" };
-                    }
+        {
+            //The View for the register page is returned here. 
+            try { }
+            catch (Exception ex)
+            {
+                // Log the exception or handle it as needed
+                Console.WriteLine($"An error occurred: {ex.Message}");
+                // Optionally, you can return an error view or message
+                return new ViewResult { ViewName = "Error" };
+            }
+            return new ViewResult { ViewName = "Register" };
+        }
 
         //public static async Task<IActionResult> UpdateTrainer()
         //{
