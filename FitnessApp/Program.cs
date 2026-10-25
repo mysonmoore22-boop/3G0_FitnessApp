@@ -1,3 +1,4 @@
+using FitnessApp.Helpers;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -39,7 +40,7 @@ namespace FitnessApp
             });
 
             builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
-            builder.Services.AddHttpClient < EGO_BLL.> ();
+            //builder.Services.AddHttpClient < EGO_BLL.> ();
             //Basically you should be adding your services here. AHP did this with their APIs. 
             //builder.Services.AddSingleton<IPathProvider, PathProvider>();
 
@@ -74,14 +75,15 @@ namespace FitnessApp
 
             app.UseEndpoints(endpoints =>
             {
-            endpoints.MapControllerRoute(
-                name: "default",
-                pattern: "{controller=Home}/{action=Index}/{id?}")
-                .WithStaticAssets();)
-            );
+                endpoints.MapControllerRoute(
+                    name: "default",
+                    pattern: "{controller=Home}/{action=Index}/{id?}")
+                    .WithStaticAssets();
+            });
             app.Run();
         }
     }
 }
+
 
 

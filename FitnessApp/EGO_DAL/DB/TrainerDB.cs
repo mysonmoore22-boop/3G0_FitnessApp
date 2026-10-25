@@ -1,5 +1,7 @@
 ﻿using FitnessApp.Models;
 using System.Data;
+using System.Data.SqlClient;
+using Dapper;
 
 namespace FitnessApp.EGO_DAL.DB
 {
@@ -9,25 +11,28 @@ namespace FitnessApp.EGO_DAL.DB
         {
             const string sql = @"SELECT * FROM Trainers";
 
-            var conn = new SqlConnection(AppConfiguration.ConnectionString("prod"))
+            using (var conn = new SqlConnection(AppConfiguration.GetConnectionString("prod")))
             {
-               object result =  conn.QueryAsync(sql)
-               return Results; 
-            };       
+                return await conn.QueryAsync<TrainerViewModel>(sql);
+            }
         }
 
         public static async Task<bool> UpdateTrainerAsync(TrainerViewModel model)
         {
             const string sql = @"Update...";
-            var param = new TrainerViewModel
+            var param = new
             {
-
+                // Map properties from model as needed, e.g.:
+                // Id = model.Id,
+                // Name = model.Name,
+                // etc.
             };
 
-            var conn = new SqlConnection(AppConfiguration.ConnectionString())
+            using (var conn = new SqlConnection(AppConfiguration.GetConnectionString()))
             {
-                conn.QueryAsync(sql, param, CommandType: CommandType.StoredProcedure)
-            };
+                var affectedRows = await conn.ExecuteAsync(sql, param, commandType: CommandType.StoredProcedure);
+                return affectedRows > 0;
+            }
         }
     }
 }
