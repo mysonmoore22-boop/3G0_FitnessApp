@@ -1,9 +1,10 @@
-﻿namespace FitnessApp.Models
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace FitnessApp.Models
 {
     public class ExternalLoginConfirmationViewModel
     {
         [Required]
-        [EmailAddress]
         public string Email { get; set; }
     }
 }

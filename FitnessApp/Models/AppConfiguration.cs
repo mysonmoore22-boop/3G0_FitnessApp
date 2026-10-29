@@ -1,4 +1,6 @@
-﻿namespace FitnessApp.Models
+﻿using Dapper.FluentMap;
+
+namespace FitnessApp.Models
 {
     public static class AppConfiguration
     {
@@ -6,7 +8,7 @@
         {
             FluentMapper.Initialize(x =>
             {
-                x.AddMap(new TrainerViewModelMap());
+                //x.AddMap(new TrainerViewModelMap());
             });
         }
 
@@ -15,7 +17,7 @@
             switch (db.ToLower())
             {
                 case "prod":
-                    return "Server=localhost;Database=FitnessAppDB;User Id=sa;Password=YourStrong!Passw0rd;";
+                    return "Data Source=localhost;Initial Catalog=CorporateDB;Integrated Security=True;Encrypt=True;TrustServerCertificate=True;Application Name=FitnessApp";
                 case "dev":
                     return "Server=localhost;Database=FitnessAppDB_Dev;User Id=sa;Password=YourStrong!Passw0rd;";
                 case "test":
@@ -25,9 +27,14 @@
             }
         }
 
-        internal static object GetConnectionString()
+        internal static object Initialize(ConfigurationManager configuration)
         {
-            throw new NotImplementedException();
+           return null;
         }
+
+        //internal static void Initialize(ConfigurationManager configuration)
+        //{
+        //    throw new NotImplementedException();
+        //}
     }
 }

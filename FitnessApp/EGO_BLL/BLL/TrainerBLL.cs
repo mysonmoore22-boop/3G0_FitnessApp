@@ -6,7 +6,7 @@ namespace FitnessApp.EGO_BLL.BLL
 
         public static async Task<IEnumerable<TrainerViewModel>> GetTrainersAsync()
         {
-            var result = EGO_DAL.DB.TrainerDB.GetTrainersAsync();
+            var result = await EGO_DAL.DB.TrainerDB.GetTrainersAsync();
             return result; 
         }
         

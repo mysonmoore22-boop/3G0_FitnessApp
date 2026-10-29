@@ -1,6 +1,6 @@
 ﻿using FitnessApp.Models;
 using System.Data;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using Dapper;
 
 namespace FitnessApp.EGO_DAL.DB
@@ -28,7 +28,7 @@ namespace FitnessApp.EGO_DAL.DB
                 // etc.
             };
 
-            using (var conn = new SqlConnection(AppConfiguration.GetConnectionString()))
+            using (var conn = new SqlConnection(AppConfiguration.GetConnectionString("prod")))
             {
                 var affectedRows = await conn.ExecuteAsync(sql, param, commandType: CommandType.StoredProcedure);
                 return affectedRows > 0;

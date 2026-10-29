@@ -1,22 +1,24 @@
 using FitnessApp.Helpers;
+using FitnessApp.Models;
+using FitnessApp.Data;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.SqlServer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.VisualBasic;
-using Microsoft.VisualStudio.Utilities;
-using System.Diagnostics.Eventing.Reader;
-using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace FitnessApp
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
+            // Gives the static AppConfiguration class access to appsettings.json
+            // (also triggers its static constructor, which registers the Dapper maps)
+            object Auth = AppConfiguration.Initialize(builder.Configuration);
 
             // Add services to the container.
             builder.Services.AddControllersWithViews(config =>
@@ -26,28 +28,38 @@ namespace FitnessApp
             }).AddSessionStateTempDataProvider();
 
             builder.Services.AddSession();
-            builder.Services.AddIdentity<IdentityUser, IdentityRole>();
 
-            builder.Services.AddAuthentication(options =>
-            {
-                options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-                options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-            }).AddCookie().AddGoogle("Google", options =>
-            {
-                //options.ClientId = My client id goes here ex: "2049284928498394809.apps.googleusercontent.com";
-                //options.ClientSecret = "my client secret"
+            builder.Services.AddDbContext<AppIdentityDBContext>(options =>
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+            builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
+            {
+                options.User.RequireUniqueEmail = true;
+                options.SignIn.RequireConfirmedAccount = false;
+            })
+            .AddEntityFrameworkStores<AppIdentityDBContext>()
+            .AddDefaultTokenProviders();
+
+            builder.Services.ConfigureApplicationCookie(options =>
+            {
+                options.LoginPath = "/Account/Login";
+                options.AccessDeniedPath = "/Account/AccessDenied";
             });
 
+            // Identity already registers the cookie schemes and defaults. Only add Google.
+            //builder.Services.AddAuthentication()
+            //    .AddGoogle("Google", options =>
+            //    {
+            //        options.ClientId = .Configuration["Authentication:Google:ClientId"]!;
+            //        options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"]!;
+            //    });
+
             builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformer>();
-            //builder.Services.AddHttpClient < EGO_BLL.> ();
-            //Basically you should be adding your services here. AHP did this with their APIs. 
-            //builder.Services.AddSingleton<IPathProvider, PathProvider>();
 
             builder.Services.Configure<FormOptions>(x =>
             {
                 x.MemoryBufferThreshold = Int32.MaxValue;
-                x.MultipartBodyLenghtLimit = long.MaxValue;
+                x.MultipartBodyLengthLimit = long.MaxValue;
             });
 
             var app = builder.Build();
@@ -67,9 +79,9 @@ namespace FitnessApp
             app.UseStaticFiles();
             app.UseCookiePolicy();
             app.UseRouting();
+            app.UseSession();
             app.UseAuthentication();
             app.UseAuthorization();
-            app.UseSession();
 
             app.MapStaticAssets();
 
@@ -80,10 +92,8 @@ namespace FitnessApp
                     pattern: "{controller=Home}/{action=Index}/{id?}")
                     .WithStaticAssets();
             });
+
             app.Run();
         }
     }
 }
-
-
-

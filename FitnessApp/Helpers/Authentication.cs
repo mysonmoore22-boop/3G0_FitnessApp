@@ -57,8 +57,8 @@ namespace FitnessApp.Helpers
                 return principal;
 
             // Can be invoked multiple times per request; only enrich once
-            if (principal.HasClaim(c => c.Type == TransformedMarker))
-                return principal;
+            //if (principal.HasClaim(c => c.Type == t))
+            //    return principal;
 
             var email = principal.FindFirstValue(ClaimTypes.Email);
             if (string.IsNullOrEmpty(email))
@@ -86,7 +86,7 @@ namespace FitnessApp.Helpers
                     identity.AddClaim(claim);
             }
 
-            identity.AddClaim(new Claim(TransformedMarker, "true"));
+            //identity.AddClaim(new Claim(TransformedMarker, "true"));
             return clone;
         }
     }
@@ -128,7 +128,7 @@ namespace FitnessApp.Helpers
                     throw new Exception("User creation failed: "+ errorMessages);   
                 }
             }
-            return await _userManager.FindByEmailAsync(email);
+            return await _userManager.FindByEmailAsync(email).ConfigureAwait(false);
         }
     }
 }
